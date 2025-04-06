@@ -8,18 +8,18 @@ import java.util.List;
 
 public class ToolPanel extends JPanel {
     // Komponenty interfejsu
-    private JButton fillButton;
+    private JButton saveButton;
     private JPanel currentColorPanel;
     private Color currentColor = Color.BLACK;
 
-    // Interfejsy nasłuchów
-    public interface ToolChangeListener {
-        void toolChanged(String newTool);
+    // Interfejs dla przycisku Zapisz
+    public interface SaveActionListener {
+        void saveActionPerformed();
     }
 
     // Listy słuchaczy
-    private final List<ToolChangeListener> toolListeners = new ArrayList<>();
     private final List<ActionListener> colorListeners = new ArrayList<>();
+    private final List<SaveActionListener> saveListeners = new ArrayList<>();
 
     public ToolPanel() {
         setLayout(new BorderLayout());
@@ -28,50 +28,68 @@ public class ToolPanel extends JPanel {
     }
 
     private void initComponents() {
-        // Panel narzędzi
-        JPanel toolButtonsPanel = new JPanel(new GridLayout(2, 1, 5, 5));
-        fillButton = new JButton("Wypełnienie");
+        // Główny układ pionowy
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Marginesy dla całego panelu
 
-        // Style przycisków
-        fillButton.setBackground(new Color(240, 240, 240));
+        // Sekcja Akcje (tylko Zapisz)
+        JLabel actionsLabel = new JLabel("Akcje:");
+        actionsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        saveButton = new JButton("Zapisz");
+        saveButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        saveButton.setBackground(new Color(240, 240, 240));
+         // Ustawienie maksymalnego rozmiaru, aby przycisk nie rozciągał się na całą szerokość
+        saveButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, saveButton.getPreferredSize().height));
 
-        toolButtonsPanel.add(fillButton);
+        mainPanel.add(actionsLabel);
+        mainPanel.add(Box.createVerticalStrut(5)); // Mały odstęp
+        mainPanel.add(saveButton);
+        mainPanel.add(Box.createVerticalStrut(20)); // Większy odstęp przed następną sekcją
 
-        // Panel koloru
-        JPanel colorPanel = new JPanel(new BorderLayout(5, 5));
-        JButton colorButton = new JButton("Wybierz kolor");
+
+        // Sekcja Wyboru Koloru
+        JLabel chooseColorLabel = new JLabel("Wybierz kolor:");
+        chooseColorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton colorButton = new JButton("Wybierz z palety");
+        colorButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        colorButton.setBackground(new Color(240, 240, 240));
+        colorButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, colorButton.getPreferredSize().height));
+
         currentColorPanel = new JPanel();
         currentColorPanel.setBackground(currentColor);
         currentColorPanel.setBorder(BorderFactory.createLineBorder(Color.BLACK));
         currentColorPanel.setPreferredSize(new Dimension(50, 50));
-        colorPanel.add(colorButton, BorderLayout.NORTH);
-        colorPanel.add(currentColorPanel, BorderLayout.CENTER);
+        currentColorPanel.setMaximumSize(new Dimension(50, 50)); // Stały rozmiar kwadratu
+        currentColorPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Główny układ
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(new JLabel("Narzędzia:", JLabel.LEFT));
-        mainPanel.add(toolButtonsPanel);
-        mainPanel.add(Box.createVerticalStrut(20));
-        mainPanel.add(colorPanel);
+        mainPanel.add(chooseColorLabel);
+        mainPanel.add(Box.createVerticalStrut(5));
+        mainPanel.add(currentColorPanel); // Najpierw kwadrat
+        mainPanel.add(Box.createVerticalStrut(5));
+        mainPanel.add(colorButton); // Potem przycisk
         mainPanel.add(Box.createVerticalStrut(20));
 
-        // Dodanie kolorów predefiniowanych
+
+        // Sekcja Kolory Predefiniowane
         JPanel predefColorPanel = new JPanel(new GridLayout(2, 4, 5, 5));
         predefColorPanel.setBorder(BorderFactory.createTitledBorder("Kolory"));
+        predefColorPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         addColorButtons(predefColorPanel);
+         // Ograniczenie maksymalnej szerokości panelu siatki
+        predefColorPanel.setMaximumSize(new Dimension(predefColorPanel.getPreferredSize().width, predefColorPanel.getPreferredSize().height));
 
-        mainPanel.add(Box.createVerticalStrut(20));
+
         mainPanel.add(predefColorPanel);
 
-        // Dodanie marginesów
-        JPanel wrapperPanel = new JPanel(new BorderLayout());
-        wrapperPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        wrapperPanel.add(mainPanel, BorderLayout.NORTH);
-
-        add(wrapperPanel, BorderLayout.CENTER);
+        // Dodanie głównego panelu do ToolPanel
+        // Używamy PAGE_AXIS, aby elementy zajmowały dostępną szerokość
+        // Zamieniamy wrapperPanel na bezpośrednie dodanie mainPanel
+        //add(mainPanel, BorderLayout.NORTH); // Ustawienie na górze w BorderLayout
+         // Zmieniamy główny layout ToolPanel na BoxLayout dla lepszej kontroli
+         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
+         add(mainPanel);
+         add(Box.createVerticalGlue()); // Wypełnienie pustej przestrzeni na dole
     }
 
     private void addColorButtons(JPanel panel) {
@@ -81,12 +99,30 @@ public class ToolPanel extends JPanel {
 
             public ColorButton(Color color) {
                 this.color = color;
-                setBackground(color);
                 setPreferredSize(new Dimension(30, 30));
                 setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                setOpaque(true);
+                setContentAreaFilled(false);
+                setFocusPainted(false);
 
-                // Wykorzystanie EventDispatchThread dla obsługi zdarzeń
                 addActionListener(e -> SwingUtilities.invokeLater(() -> setCurrentColor(color)));
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(this.color);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+
+                if (getModel().isPressed()) {
+                    g2.setColor(color.darker());
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+
+                if (getBorder() != null) {
+                    getBorder().paintBorder(this, g2, 0, 0, getWidth(), getHeight());
+                }
+                g2.dispose();
             }
         }
 
@@ -101,74 +137,61 @@ public class ToolPanel extends JPanel {
     }
 
     private void setupListeners() {
-        // Nasłuchy przycisków narzędzi
-        fillButton.addActionListener(e -> notifyToolListeners("fill"));
+        saveButton.addActionListener(e -> notifySaveListeners());
 
-        // Nasłuch przycisku wyboru koloru
-        JButton chooseColorButton = (JButton)((JPanel)currentColorPanel.getParent()).getComponent(0);
-        chooseColorButton.addActionListener(e -> {
-            Color chosenColor = JColorChooser.showDialog(ToolPanel.this, "Wybierz kolor", currentColor);
-            if (chosenColor != null) {
-                setCurrentColor(chosenColor);
+        // Nasłuch przycisku wyboru koloru ("Wybierz z palety")
+        Component[] components = ((JPanel)saveButton.getParent()).getComponents();
+        JButton chooseColorButton = null;
+        for(Component comp : components) {
+            if(comp instanceof JButton && ((JButton)comp).getText().equals("Wybierz z palety")) {
+                chooseColorButton = (JButton) comp;
+                break;
             }
-        });
-    }
-
-    public void addToolChangeListener(ToolChangeListener listener) {
-        toolListeners.add(listener);
+        }
+        if (chooseColorButton != null) {
+            chooseColorButton.addActionListener(e -> {
+                Color chosenColor = JColorChooser.showDialog(ToolPanel.this, "Wybierz kolor", currentColor);
+                if (chosenColor != null) {
+                    setCurrentColor(chosenColor);
+                }
+            });
+        } else {
+            System.err.println("Nie znaleziono przycisku 'Wybierz z palety' do dodania listenera.");
+        }
     }
 
     public void addColorChangeListener(ActionListener listener) {
         colorListeners.add(listener);
     }
 
-    private void notifyToolListeners(String tool) {
-        // Upewnienie się, że powiadomienia są wysyłane w EDT
-        if (SwingUtilities.isEventDispatchThread()) {
-            for (ToolChangeListener listener : toolListeners) {
-                listener.toolChanged(tool);
+    public void addSaveActionListener(SaveActionListener listener) {
+        saveListeners.add(listener);
+    }
+
+    private void notifySaveListeners() {
+        SwingUtilities.invokeLater(() -> {
+            for (SaveActionListener listener : saveListeners) {
+                listener.saveActionPerformed();
             }
-        } else {
-            SwingUtilities.invokeLater(() -> {
-                for (ToolChangeListener listener : toolListeners) {
-                    listener.toolChanged(tool);
-                }
-            });
-        }
+        });
     }
 
     private void notifyColorListeners() {
-        // Upewnienie się, że powiadomienia są wysyłane w EDT
-        if (SwingUtilities.isEventDispatchThread()) {
+        SwingUtilities.invokeLater(() -> {
             ActionEvent event = new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "colorChanged");
             for (ActionListener listener : colorListeners) {
                 listener.actionPerformed(event);
             }
-        } else {
-            SwingUtilities.invokeLater(() -> {
-                ActionEvent event = new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "colorChanged");
-                for (ActionListener listener : colorListeners) {
-                    listener.actionPerformed(event);
-                }
-            });
-        }
+        });
     }
 
     public void setCurrentColor(Color color) {
         currentColor = color;
-
-        // Aktualizacja UI w EDT
-        if (SwingUtilities.isEventDispatchThread()) {
+        SwingUtilities.invokeLater(() -> {
             currentColorPanel.setBackground(color);
             currentColorPanel.repaint();
             notifyColorListeners();
-        } else {
-            SwingUtilities.invokeLater(() -> {
-                currentColorPanel.setBackground(color);
-                currentColorPanel.repaint();
-                notifyColorListeners();
-            });
-        }
+        });
     }
 
     public Color getCurrentColor() {

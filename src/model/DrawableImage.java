@@ -3,6 +3,8 @@ package model;
 import model.shapes.Shape;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.WritableRaster;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -29,6 +31,14 @@ public class DrawableImage {
         // Czyszczenie warstw
         clearLayer(baseImage);
         clearLayer(coloringLayer);
+    }
+
+    private static BufferedImage copyImage(BufferedImage source){
+        if (source == null) return null;
+        ColorModel cm = source.getColorModel();
+        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+        WritableRaster raster = source.copyData(null);
+        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
 
     private void clearLayer(BufferedImage layer) {
@@ -71,18 +81,6 @@ public class DrawableImage {
             g.drawImage(coloringLayer, x, y, width, height, null);
         } finally {
             lock.readLock().unlock();
-        }
-    }
-
-    public void colorAt(int x, int y, Color color, int brushSize) {
-        lock.writeLock().lock();
-        try {
-            Graphics2D g = coloringLayer.createGraphics();
-            g.setColor(color);
-            g.fillOval(x - brushSize/2, y - brushSize/2, brushSize, brushSize);
-            g.dispose();
-        } finally {
-            lock.writeLock().unlock();
         }
     }
 
